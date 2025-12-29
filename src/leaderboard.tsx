@@ -172,7 +172,7 @@ const LeaderboardDashboard = () => {
     
     const fetchData = async () => {
       try {
-        const response = await fetch('https://api-testnet.ltv.finance/address-to-points-sorted');
+        const response = await fetch('https://api-points.ltv.finance/address-to-points-sorted');
         if (!response.ok) {
           throw new Error('Failed to fetch data');
         }
