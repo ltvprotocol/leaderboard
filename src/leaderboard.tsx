@@ -208,7 +208,7 @@ const LeaderboardDashboard = () => {
         {/* Header */}
         <div className="mb-8">
           {/* Alpha Testing Warning Banner */}
-          <div className="mb-6 bg-red-600 text-white rounded-xl p-6 shadow-2xl border-4 border-red-800">
+          <div style="display: none;" className="mb-6 bg-red-600 text-white rounded-xl p-6 shadow-2xl border-4 border-red-800">
             <div className="flex items-center justify-center gap-3">
               <span className="text-3xl">⚠️</span>
               <span className="text-2xl md:text-3xl font-extrabold tracking-wide uppercase">ALPHA TESTING: Data can be incorrect</span>
