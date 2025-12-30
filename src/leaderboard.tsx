@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trophy, Medal, Award, Calendar, TrendingUp } from 'lucide-react';
 
 // Process real data
-const processRealData = (apiData, period, startDate, endDate) => {
+const processRealData = (apiData, period, startDate, endDate, totalPointsFromApi) => {
   const tiers = ['Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze'];
   
   if (!apiData || !apiData.addressToPointsSorted) {
@@ -10,7 +10,7 @@ const processRealData = (apiData, period, startDate, endDate) => {
       period,
       startDate,
       endDate,
-      pointsDistributed: 0,
+      pointsDistributed: totalPointsFromApi || 0,
       nextDistribution: new Date().toISOString().split('T')[0],
       entries: []
     };
@@ -34,8 +34,6 @@ const processRealData = (apiData, period, startDate, endDate) => {
     };
   });
   
-  const totalPoints = entries.reduce((sum, entry) => sum + entry.points, 0);
-  
   // Set next distribution to tomorrow
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -44,7 +42,7 @@ const processRealData = (apiData, period, startDate, endDate) => {
     period,
     startDate,
     endDate,
-    pointsDistributed: totalPoints,
+    pointsDistributed: totalPointsFromApi || 0,
     nextDistribution: tomorrow.toISOString().split('T')[0],
     entries
   };
@@ -172,14 +170,28 @@ const LeaderboardDashboard = () => {
     
     const fetchData = async () => {
       try {
-        const response = await fetch('https://api-points.ltv.finance/address-to-points-sorted');
-        if (!response.ok) {
-          throw new Error('Failed to fetch data');
+        // Fetch both the leaderboard data and total points in parallel
+        const [leaderboardResponse, totalPointsResponse] = await Promise.all([
+          fetch('https://api-points.ltv.finance/address-to-points-sorted'),
+          fetch('https://api-points.ltv.finance/total-points')
+        ]);
+        
+        if (!leaderboardResponse.ok) {
+          throw new Error('Failed to fetch leaderboard data');
         }
-        const apiData = await response.json();
+        if (!totalPointsResponse.ok) {
+          throw new Error('Failed to fetch total points');
+        }
+        
+        const apiData = await leaderboardResponse.json();
+        const totalPointsData = await totalPointsResponse.json();
+        
+        // Convert totalPoints from the API response (divide by 10^24 to match entry points conversion)
+        const totalPoints = totalPointsData.totalPoints ? Math.floor(Number(totalPointsData.totalPoints) / 1e24) : 0;
+        
         const start = dateRange?.start || '2024-01-01';
         const end = dateRange?.end || new Date().toISOString().split('T')[0];
-        const processedData = processRealData(apiData, period, start, end);
+        const processedData = processRealData(apiData, period, start, end, totalPoints);
         setData(processedData);
         setLoading(false);
       } catch (err) {
