@@ -136,10 +136,17 @@ const TierBadge = ({ tier }) => {
   );
 };
 
-const NFTBadge = () => {
+const NFTBadge = ({ nftNumbers }: { nftNumbers?: number[] }) => {
+  if (!nftNumbers || nftNumbers.length === 0) {
+    return null;
+  }
+  
+  // Show all NFT numbers
+  const nftDisplay = nftNumbers.map(nftNum => `#${nftNum}`).join(', ');
+  
   return (
     <span className="px-2 py-0.5 rounded text-xs font-medium border bg-purple-100 text-purple-700 border-purple-300 whitespace-nowrap">
-      42&nbsp;NFT
+      42 NFT {nftDisplay}
     </span>
   );
 };
@@ -150,6 +157,7 @@ const LeaderboardDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [nftOwners, setNftOwners] = useState<Record<string, number[]>>({});
 
   const weekOptions = generateWeekOptions();
   const monthOptions = generateMonthOptions();
@@ -170,10 +178,11 @@ const LeaderboardDashboard = () => {
     
     const fetchData = async () => {
       try {
-        // Fetch both the leaderboard data and total points in parallel
-        const [leaderboardResponse, totalPointsResponse] = await Promise.all([
+        // Fetch leaderboard data, total points, and NFT owners in parallel
+        const [leaderboardResponse, totalPointsResponse, nftOwnersResponse] = await Promise.all([
           fetch('https://api-points.ltv.finance/address-to-points-sorted'),
-          fetch('https://api-points.ltv.finance/total-points')
+          fetch('https://api-points.ltv.finance/total-points'),
+          fetch('https://api-points.ltv.finance/nft-owners')
         ]);
         
         if (!leaderboardResponse.ok) {
@@ -182,12 +191,25 @@ const LeaderboardDashboard = () => {
         if (!totalPointsResponse.ok) {
           throw new Error('Failed to fetch total points');
         }
+        if (!nftOwnersResponse.ok) {
+          throw new Error('Failed to fetch NFT owners');
+        }
         
         const apiData = await leaderboardResponse.json();
         const totalPointsData = await totalPointsResponse.json();
+        const nftOwnersData = await nftOwnersResponse.json();
         
         // Convert totalPoints from the API response (divide by 10^24 to match entry points conversion)
         const totalPoints = totalPointsData.totalPoints ? Math.floor(Number(totalPointsData.totalPoints) / 1e24) : 0;
+        
+        // Store NFT owners data (normalize addresses to lowercase for matching)
+        const normalizedNftOwners = {};
+        if (nftOwnersData.owners) {
+          Object.keys(nftOwnersData.owners).forEach(address => {
+            normalizedNftOwners[address.toLowerCase()] = nftOwnersData.owners[address];
+          });
+        }
+        setNftOwners(normalizedNftOwners);
         
         const start = dateRange?.start || '2024-01-01';
         const end = dateRange?.end || new Date().toISOString().split('T')[0];
@@ -333,7 +355,7 @@ const LeaderboardDashboard = () => {
                           </a>
                         </td>
                         <td className="px-6 py-4">
-                          <NFTBadge />
+                          <NFTBadge nftNumbers={nftOwners[entry.fullAddress.toLowerCase()]} />
                         </td>
                         <td className="px-6 py-4 text-right">
                           <span className="text-sm font-bold text-slate-800">{formatNumber(entry.points)}</span>
